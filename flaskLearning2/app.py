@@ -4,6 +4,7 @@ import sqlite3
 
 app = Flask(__name__)
 
+
 def db_connection():
     conn = NONE
     try:
@@ -28,9 +29,9 @@ def books():
             return jsonify(books)
         
     if request.method == 'POST':
-        new_author = requst.from['author']
-        new_lang = requst.from['language']
-        new_title = requst.from['title']
+        new_author = requst.form['author']
+        new_lang = requst.form['language']
+        new_title = requst.form['title']
         sql = """INSERT INTO book (author, language, title) VALUES(?, ?, ?)"""
         cursor = cur.execute(sql, (new_author, new_lang, new_title))
         conn.commit()
@@ -43,24 +44,24 @@ def books():
 def single_book(id):
     if request.method == 'GET':
         for book in book_list:
-            if book['id'] id:
+            if book['id'] == id:
                 return jsonify(book)
             pass
     if request.method == 'PUT':
         for book in book_list:
             if book['id'] == id:
-                book['author'] = request.from('author')
-                book['language'] = request.from('language')
-                book['title'] = request.from('title')
+                book['author'] = request.form('author')
+                book['language'] = request.form('language')
+                book['title'] = request.form('title')
 
                 updated_book = {
-                    'id' = id
-                    'author': book['author']
-                    'language': book['language']
+                    'id': id,
+                    'author': book['author'],
+                    'language': book['language'],
                     'title': book['title']
                 }
                 return jsonify(updated_book)
-   if request.method == 'DELETE':
+    if request.method == 'DELETE':
        for index, book in enumerate(books_list):
            if book['id'] == id:
                books_list.pop(index)
