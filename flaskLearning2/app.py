@@ -1,72 +1,105 @@
 from flask import Flask, request, jsonify
-import json
-import sqlite3
+import pymysql
 
 app = Flask(__name__)
 
-
 def db_connection():
-    conn = NONE
+    conn = None
     try:
-        conn = sqilte3.connect("books.sqlite")
-    except sqlite3.error as e:
-        print(e)
-    return conn 
+        conn = pymysql.connect(
+            host='sql7.freesqldatabase.com',
+            database='sql7764026',
+            user='sql7764026',
+            password='tyFaTnW8tz',
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+    except pymysql.MySQLError as e:
+        print(f"Error connecting to MySQL: {e}")
+    return conn
 
 
 @app.route('/books', methods=['GET', 'POST'])
 def books():
     conn = db_connection()
+    if conn is None:
+        return "Failed to connect to the database.", 500
+    
     cursor = conn.cursor()
 
     if request.method == 'GET':
-        cursor = conn.execute("SELECT * FROM book")
-        books = [
-            dict(id=row[0], author=row[1], language=row[2], title=row[3])
-            for row in cursor.fetchall()
-        ]
-        if books is not NONE:
-            return jsonify(books)
-        
+        try:
+            cursor.execute("SELECT * FROM book")
+            books = [
+                dict(id=row['id'], author=row['author'], language=row['language'], title=row['title'])
+                for row in cursor.fetchall()
+            ]
+            if books:
+                return jsonify(books), 200
+            else:
+                return "No books found.", 404
+        except pymysql.MySQLError as e:
+            return f"Error fetching books: {e}", 500
+
     if request.method == 'POST':
-        new_author = requst.form['author']
-        new_lang = requst.form['language']
-        new_title = requst.form['title']
-        sql = """INSERT INTO book (author, language, title) VALUES(?, ?, ?)"""
-        cursor = cur.execute(sql, (new_author, new_lang, new_title))
-        conn.commit()
-        return f"Book with the id: {cursor.lastrowid} created successfully", 201
+        try:
+            new_author = request.form['author']
+            new_lang = request.form['language']
+            new_title = request.form['title']
+            sql = """INSERT INTO book (author, language, title) VALUES (%s, %s, %s)"""
+            cursor.execute(sql, (new_author, new_lang, new_title))
+            conn.commit()
+            return f"Book with the id: {cursor.lastrowid} created successfully", 201
+        except pymysql.MySQLError as e:
+            return f"Error inserting book: {e}", 500
 
-    books_list.append(new_obj)
-    return jsonify(books_list), 201
 
-@app.route('/book/<int:id>', method=['GET', 'PUT', 'DELETE'])
+@app.route('/book/<int:id>', methods=['GET', 'PUT', 'DELETE'])
 def single_book(id):
-    if request.method == 'GET':
-        for book in book_list:
-            if book['id'] == id:
-                return jsonify(book)
-            pass
-    if request.method == 'PUT':
-        for book in book_list:
-            if book['id'] == id:
-                book['author'] = request.form('author')
-                book['language'] = request.form('language')
-                book['title'] = request.form('title')
+    conn = db_connection()
+    if conn is None:
+        return "Failed to connect to the database.", 500
 
-                updated_book = {
-                    'id': id,
-                    'author': book['author'],
-                    'language': book['language'],
-                    'title': book['title']
-                }
-                return jsonify(updated_book)
+    cursor = conn.cursor()
+    book = None
+
+    if request.method == 'GET':
+        try:
+            cursor.execute("SELECT * FROM book WHERE id=%s", (id,))
+            book = cursor.fetchone()
+            if book:
+                return jsonify(book), 200
+            else:
+                return "Book not found.", 404
+        except pymysql.MySQLError as e:
+            return f"Error fetching book: {e}", 500
+
+    if request.method == 'PUT':
+        try:
+            author = request.form['author']
+            language = request.form['language']
+            title = request.form['title']
+            sql = """UPDATE book
+                    SET author=%s, language=%s, title=%s
+                    WHERE id=%s"""
+            cursor.execute(sql, (author, language, title, id))
+            conn.commit()
+            return jsonify({"id": id, "author": author, "language": language, "title": title}), 200
+        except pymysql.MySQLError as e:
+            return f"Error updating book: {e}", 500
+
     if request.method == 'DELETE':
-       for index, book in enumerate(books_list):
-           if book['id'] == id:
-               books_list.pop(index)
-               return jsonify(books_list)
+        try:
+            sql = """DELETE FROM book WHERE id=%s"""
+            cursor.execute(sql, (id,))
+            conn.commit()
+            if cursor.rowcount > 0:
+                return f"The book with id: {id} has been deleted.", 200
+            else:
+                return "Book not found.", 404
+        except pymysql.MySQLError as e:
+            return f"Error deleting book: {e}", 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
-
