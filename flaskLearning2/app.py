@@ -18,6 +18,11 @@ def db_connection():
         print(f"Error connecting to MySQL: {e}")
     return conn
 
+@app.before_request
+def restrict_routes():
+    if not request.path.startswith("/books"):
+        return jsonify({"error": "Access Denied"}), 403
+
 
 @app.route('/books', methods=['GET', 'POST'])
 def books():
